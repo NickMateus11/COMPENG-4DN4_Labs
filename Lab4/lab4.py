@@ -10,6 +10,8 @@ import struct
 import ipaddress
 from threading import Thread
 import json
+import signal
+
 
 
 CLIENT_TO_CRD_CMDS = {
@@ -137,6 +139,18 @@ RX_BIND_ADDRESS = "0.0.0.0"
 
 ########################################################################
 
+exitChat = 0 
+
+def signal_handler(sig, frame):
+	print('You pressed Ctrl+C, exiting chat.')
+	global exitChat
+	exitChat = 1
+	#sys.exit(0)
+
+#signal.signal(signal.SIGINT, signal_handler)
+#print('Press Ctrl+C')
+#signal.pause()
+
 class Client:
 
     RECV_SIZE = 256
@@ -150,7 +164,10 @@ class Client:
     def __init__(self):
         self.dir_list = None
         self.create_socket()
+        signal.signal(signal.SIGINT, signal_handler)
         self.handle_console_input_forever()
+        
+        
 
     def register_for_multicast_group(self, multicast_addr_port): 
             self.multicast_addr_port = multicast_addr_port
@@ -200,8 +217,11 @@ class Client:
     def send_chat_msg(self):
         while True:
             try:
+                if exitChat:
+                    return
                 if self.send_thread_kill:
                     return
+                    
                 msg = input()
                 msg_bytes = f'{self.name}: {msg}'.encode(Server.MSG_ENCODING)
                 addr_port = (self.multicast_addr_port[0], int(self.multicast_addr_port[1]))
@@ -214,6 +234,8 @@ class Client:
     def receive_chat_msg(self):
         try:
             while True:
+                if exitChat:
+                    return
                 if self.recv_thread_kill:
                     return
                 
@@ -228,6 +250,8 @@ class Client:
 
     def enter_chat_room(self, chatroom):
         try:
+            global exitChat
+            exitChat = 0
             for room in self.dir_list:
                 print(room['name'], chatroom)
                 if room['name'] == chatroom:
@@ -255,8 +279,10 @@ class Client:
             recv_thread.join()
         except:
             pass
-
+	
         print("Chat exited")
+        #close the connection
+        #self.CRDS_socket.close()
 
     def getdir(self):
         cmd_field = CLIENT_TO_CRD_CMDS["getdir"].to_bytes(1, byteorder='big')
