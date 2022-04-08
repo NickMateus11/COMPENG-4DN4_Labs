@@ -102,12 +102,15 @@ class Server:
                     multicast_ip = socket.inet_ntoa(connection.recv(4))
                     multicast_port = connection.recv(Server.RECV_SIZE).decode(Server.MSG_ENCODING)
 
-                    # TODO: check if already exists
+                    for room in self.chat_rooms:
+                        if list(room['addr_port']) == [multicast_ip, multicast_port]:
+                            resp = 0
+                            break
+                    else:
+                        self.chat_rooms.append({'name': chatroom_name, 'addr_port': (multicast_ip, multicast_port)})
+                        print("Added Chatroom to Directory: ", self.chat_rooms[-1])
+                        resp = 1
 
-                    self.chat_rooms.append({'name': chatroom_name, 'addr_port': (multicast_ip, multicast_port)})
-                    print("Added Chatroom to Directory: ", self.chat_rooms[-1])
-
-                    resp = 1
                     connection.send(resp.to_bytes(1, byteorder='big'))
 
                 elif CLIENT_TO_CRD_CMDS["deleteroom"] == cmd:
@@ -116,11 +119,9 @@ class Server:
                     chatroom_del = connection.recv(chatroom_del_byte_len).decode(Server.MSG_ENCODING)
                     print("Delete: " + chatroom_del)
                     for room in self.chat_rooms:
-                    	if room['name'] == chatroom_del:
-                    		#print("Time to delete chatroom: ", room)
-                    		self.chat_rooms.remove(room)
-
-                    
+                        if room['name'] == chatroom_del:
+                            #print("Time to delete chatroom: ", room)
+                            self.chat_rooms.remove(room)
             else:
                 print("INVALID command received. Closing connection ...")
                 connection.close()
@@ -139,13 +140,13 @@ RX_BIND_ADDRESS = "0.0.0.0"
 
 ########################################################################
 
-exitChat = 0 
+# exitChat = 0 
 
-def signal_handler(sig, frame):
-	print('You pressed Ctrl+C, exiting chat.')
-	global exitChat
-	exitChat = 1
-	#sys.exit(0)
+# def signal_handler(sig, frame):
+# 	print('You pressed Ctrl+C, exiting chat.')
+# 	global exitChat
+# 	exitChat = 1
+# 	#sys.exit(0)
 
 #signal.signal(signal.SIGINT, signal_handler)
 #print('Press Ctrl+C')
@@ -164,7 +165,7 @@ class Client:
     def __init__(self):
         self.dir_list = None
         self.create_socket()
-        signal.signal(signal.SIGINT, signal_handler)
+        # signal.signal(signal.SIGINT, signal_handler)
         self.handle_console_input_forever()
         
         
@@ -351,8 +352,8 @@ class Client:
                         print("Chatroom: ", chatroom_name, address, port)
 
                     elif self.input_text.split()[0] == "deleteroom":
-                    	 delroom = self.input_text.split()[1:]
-                    	 self.deleteroom(delroom[0])
+                        delroom = self.input_text.split()[1:]
+                        self.deleteroom(delroom[0])
 
                     elif self.input_text == "getdir":
                         self.getdir()
